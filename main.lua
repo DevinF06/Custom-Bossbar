@@ -22,8 +22,10 @@ Mod.Offset = 0
 Mod.RightClamp = Vector.Zero
 Mod.MCM = MCM
 
-Mod.InstaFix = false
 Mod.CustomAnm = true
+Mod.ForceColor = true
+Mod.SepBar = false
+Mod.InstaFix = false
 
 Mod.CustomBars = {
 	AnmNotExist = {},
@@ -46,6 +48,29 @@ Mod.Sprite = {
 	Over = Sprite()
 }
 
+
+MCM.Defaults = {
+	ColorR = 10,
+	ColorG = 0,
+	ColorB = 0,
+	Chroma = 0,
+	
+	BossSatan = false,
+	BossTheLamb = false,
+	BossIsaac = false,
+	BossBlueBaby = false,
+	BossHush = false,
+	BossDelirium = false,
+	
+	BossMegaSatan = true,
+	BossMother = true,
+	BossTheBeast = true,
+	
+	CustomAnm = false,
+	ForceColor = true,
+	SepBar = false,
+	InstaFix = false
+}
 
 function MCM.LoadData(data)
 	-- Make sure data has defaults, and of same type
@@ -76,25 +101,6 @@ function Mod.FixPos()
 end
 
 if ModConfigMenu then
-	
-	MCM.Defaults = {
-		ColorR = 10,
-		ColorG = 0,
-		ColorB = 0,
-		Chroma = 0,
-		ForceColor = false,
-		BossSatan = false,
-		BossTheLamb = false,
-		BossIsaac = false,
-		BossBlueBaby = false,
-		BossHush = false,
-		BossDelirium = false,
-		BossMegaSatan = true,
-		BossMother = true,
-		BossTheBeast = true,
-		CustomAnm = false,
-		InstaFix = false
-	}
 
 	function MCM.FixOffset()
 		Mod.Offset = default(ModConfigMenu.Config["General"].HudOffset, 0)
@@ -170,11 +176,17 @@ if ModConfigMenu then
 	
 	function MCM.OtherChange()
 		Mod.CustomAnm = ModConfigMenu.Config["Custom Bossbar"].CustomAnm
+		Mod.ForceColor = ModConfigMenu.Config["Custom Bossbar"].ForceColor
+		Mod.BasePos.Y = ModConfigMenu.Config["Custom Bossbar"].SepBar and -25 or -10
 		Mod.InstaFix = ModConfigMenu.Config["Custom Bossbar"].InstaFix
+		
+		Mod.FixPos()
 	end
 	
 	
 	local t, t2
+	
+	MCM.OnChange(ModConfigMenu.MenuData[1].Subcategories[1].Options[1], MCM.FixOffset)
 	
 	ModConfigMenu.AddText("Custom Bossbar", "General", MCM.Display("Default color"))
 	t = "Modify the bar's color"
@@ -182,11 +194,10 @@ if ModConfigMenu then
 	MCM.OnChange(ModConfigMenu.AddScrollSetting("Custom Bossbar", "General", "ColorG", 0, "G", t), MCM.ColorChange)
 	MCM.OnChange(ModConfigMenu.AddScrollSetting("Custom Bossbar", "General", "ColorB", 0, "B", t), MCM.ColorChange)
 	MCM.OnChange(ModConfigMenu.AddNumberSetting("Custom Bossbar", "General", "Chroma", 0, 5, 0, "Chroma", { [0] = "off", "x1", "x2", "x3", "x4", "x5" }, "Allows the bar to shift hue$newlineIt's speed depends on the saturation"), MCM.ColorChange)
-	MCM.OnChange(ModConfigMenu.AddBooleanSetting("Custom Bossbar", "General", "ForceColor", false, "Force Color", { [false] = "off", [true] = "on" }, "Changes the color of custom animations"), MCM.ColorChange)
 	ModConfigMenu.AddSpace("Custom Bossbar", "General")
 	ModConfigMenu.AddText("Custom Bossbar", "General", MCM.Display("Enable on bosses"))
 	t = "Allows the bar to show on "
-	t2 = "$newlineHudAPI needs to be active for the custom bar to show"
+	t2 = "$newlineHud needs to be hidden for the custom bar to show"
 	MCM.OnChange(ModConfigMenu.AddBooleanSetting("Custom Bossbar", "General", "BossSatan", false, "Satan", t .. "Satan" .. t2), MCM.BossChange)
 	MCM.OnChange(ModConfigMenu.AddBooleanSetting("Custom Bossbar", "General", "BossTheLamb", false, "The Lamb", t .. "The Lamb" .. t2), MCM.BossChange)
 	MCM.OnChange(ModConfigMenu.AddBooleanSetting("Custom Bossbar", "General", "BossIsaac", false, "Isaac", t .. "Isaac" .. t2), MCM.BossChange)
@@ -200,9 +211,9 @@ if ModConfigMenu then
 	MCM.OnChange(ModConfigMenu.AddBooleanSetting("Custom Bossbar", "General", "BossTheBeast", true, "The Beast", t .. "The Beast"), MCM.BossChange)
 	ModConfigMenu.AddSpace("Custom Bossbar", "General")
 	MCM.OnChange(ModConfigMenu.AddBooleanSetting("Custom Bossbar", "General", "CustomAnm", true, "Custom Animations", { [false] = "off", [true] = "on" }, "Enables custom animations"), MCM.OtherChange)
+	MCM.OnChange(ModConfigMenu.AddBooleanSetting("Custom Bossbar", "General", "ForceColor", true, "Force Color", { [false] = "off", [true] = "on" }, "Changes the color of custom animations"), MCM.OtherChange)
+	MCM.OnChange(ModConfigMenu.AddBooleanSetting("Custom Bossbar", "General", "SepBar", false, "Separate Bar", { [false] = "off", [true] = "on" }, "Moves the bar above the other bar$newlineAllows bar to be shown without hiding the Hud"), MCM.OtherChange)
 	MCM.OnChange(ModConfigMenu.AddBooleanSetting("Custom Bossbar", "General", "InstaFix", false, "Insta Fix", { [false] = "off", [true] = "on" }, "Runs fixes every frame"), MCM.OtherChange)
-	
-	MCM.OnChange(ModConfigMenu.MenuData[1].Subcategories[1].Options[1], MCM.FixOffset)
 	
 end
 
@@ -214,6 +225,7 @@ end
 function Mod.GetCustomBar(entity)
 	if not Mod.CustomAnm then return end
 	if Mod.CustomBars.Current then return end
+	
 	local str = string.format("%i_%i_%i", entity.Type, entity.Variant, entity.SubType)
 	local str2, spr
 	
@@ -240,7 +252,9 @@ function Mod.GetCustomBar(entity)
 		Mod.Sprite.Over:Load(str2, true)
 		Mod.Sprite.Over:Play("Over")
 		
-		if not Mod.ForceColor then Mod.Sprite.Bar.Color = default(Mod.CustomBars.Color[str], Color(1, 0, 0)) end
+		if not Mod.ForceColor then
+			Mod.Sprite.Bar.Color = default(Mod.CustomBars.Color[str], Color(1, 0, 0))
+		end
 		
 		Mod.CustomBars.Current = str
 	end
@@ -285,7 +299,7 @@ function Mod:CalculateHitPoints(entity)
 	
 	if not Mod.HitPoints then
 		Mod.HitPoints = {
-			Value = 0, LastValue = 0, -- LastValue used for (broken) animation
+			Value = 0, LastValue = 0, -- LastValue used for animation
 			Max = { Value = 0 }, -- Max value of bar
 			Entities = 0, -- Number of entities
 			
@@ -309,7 +323,8 @@ function Mod:CalculateHitPoints(entity)
 	
 	-- Modify maximum value
 	Mod.HitPoints.Max[ptr] = math.max(hp, diff)
-	if Mod.HitPoints.ID[ptr] ~= id then
+	-- Make exception for Delirium, who 
+	if id ~= "412.0.0" and Mod.HitPoints.ID[ptr] ~= id then
 		-- If entity has changed, reset max value
 		Mod.HitPoints.Max[ptr] = 0
 		Mod.HitPoints.ID[ptr] = id
@@ -327,19 +342,19 @@ end
 function Mod.FixHitPoints()
 	if not Mod.HitPoints then return end
 	
-	local val = 0
-	Mod.HitPoints.Value = nil
+	Mod.HitPoints.Value = 0
 	for k,v in pairs(Mod.HitPoints) do
-		val = val + v
+		if type(v) == "number" then
+			Mod.HitPoints.Value = Mod.HitPoints.Value + v
+		end
 	end
-	Mod.HitPoints.Value = val
 	
-	val = 0
-	Mod.HitPoints.Max.Value = nil
+	Mod.HitPoints.Max.Value = 0
 	for k,v in pairs(Mod.HitPoints.Max) do
-		val = val + v
+		if type(v) == "number" then
+			Mod.HitPoints.Max.Value = Mod.HitPoints.Max.Value + v
+		end
 	end
-	Mod.HitPoints.Max.Value = val
 	
 	Mod.UpdateBar()
 end
@@ -359,8 +374,7 @@ function Mod.UpdateBar()
 	if not Mod.HitPoints then return end
 	
 	if Mod.HitPoints.Entities == 0 then
-		Mod.HitPoints = nil
-		Mod.ResetAnm()
+		Mod.ResetStuff()
 		return
 	end
 	
@@ -373,7 +387,7 @@ function Mod.UpdateBar()
 	Mod.HitPoints.LastValue = Mod.HitPoints.Value
 end
 
-function Mod.ResetAnm()
+function Mod.ResetSprites()
 	-- Reset sprites to defaults
 	
 	Mod.Sprite.Base:Load("gfx/custom_ui/ui_bosshealthbar.anm2", true)
@@ -394,12 +408,12 @@ function Mod.ResetAnm()
 	
 	Mod.CustomBars.Current = nil
 end
-Mod.ResetAnm()
+Mod.ResetSprites()
 
-function Mod:MC_POST_NEW_ROOM()
+function Mod.ResetStuff()
 	-- Reset HitPoints and sprites
 	Mod.HitPoints = nil
-	Mod.ResetAnm()
+	Mod.ResetSprites()
 end
 
 function Mod:MC_POST_GAME_STARTED()
@@ -423,7 +437,7 @@ Mod:AddCallback(ModCallbacks.MC_POST_NPC_INIT, Mod.CalculateHitPoints)
 Mod:AddCallback(ModCallbacks.MC_NPC_UPDATE, Mod.CalculateHitPoints)
 Mod:AddCallback(ModCallbacks.MC_ENTITY_TAKE_DMG, Mod.CalculateHitPoints)
 Mod:AddCallback(ModCallbacks.MC_POST_ENTITY_REMOVE, Mod.MC_POST_ENTITY_REMOVE)
-Mod:AddCallback(ModCallbacks.MC_POST_NEW_ROOM, Mod.MC_POST_NEW_ROOM)
+Mod:AddCallback(ModCallbacks.MC_POST_NEW_ROOM, Mod.ResetStuff)
 Mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, Mod.MC_POST_GAME_STARTED)
 Mod:AddCallback(ModCallbacks.MC_PRE_GAME_EXIT, Mod.MC_PRE_GAME_EXIT)
 
