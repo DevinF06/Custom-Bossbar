@@ -1,7 +1,7 @@
 local Mod = RegisterMod("Custom Bossbar", 1)
 local MCM = {}
-local json = require("json")
 local hsv = require("hsv")
+local json = require("json")
 
 require("scripts.screenhelper")
 
@@ -9,12 +9,18 @@ local function default(value, default)
 	return value ~= nil and value or default
 end
 
-Mod.ENTITYLIST = {"274.0.0", "275.0.0", "912.0.0", "912.10.0", "951.0.0", "951.10.0", "951.20.0", "951.30.0", "951.40.0"}
+-- Include Mega Satan, Mother, and The Beast (...and horsemen) by default
+Mod.ENTITYLIST = {
+	"274.0.0", "275.0.0", -- Mega satan
+	"912.0.0", "912.10.0", -- Mother
+	"951.0.0", "951.10.0", "951.20.0", "951.30.0", "951.40.0" -- The Beast
+}
 
 Mod.Pos = Vector.Zero
 Mod.BasePos = Vector(1, -10)
 Mod.Offset = 0
 Mod.RightClamp = Vector.Zero
+Mod.MCM = MCM
 
 Mod.InstaFix = false
 Mod.CustomAnm = true
@@ -23,7 +29,7 @@ Mod.CustomBars = {
 	AnmNotExist = {},
 	PngNotExist = {},
 	
-	Colors = {
+	Color = {
 		--[[
 		["274.0.0"] = Color(1, 0, 0),
 		["275.0.0"] = Color(1, 0, 0),
@@ -34,60 +40,34 @@ Mod.CustomBars = {
 	}
 }
 
-Mod.Base = Sprite()
-Mod.Bar = Sprite()
-Mod.Over = Sprite()
-
+Mod.Sprite = {
+	Base = Sprite(),
+	Bar = Sprite(),
+	Over = Sprite()
+}
 
 
 function MCM.LoadData(data)
-	ModConfigMenu.Config["Custom Bossbar"].ColorR = default(data.ColorR, 10)
-	ModConfigMenu.Config["Custom Bossbar"].ColorG = default(data.ColorG, 0)
-	ModConfigMenu.Config["Custom Bossbar"].ColorB = default(data.ColorB, 0)
-	ModConfigMenu.Config["Custom Bossbar"].Chroma = default(data.Chroma, 0)
-	ModConfigMenu.Config["Custom Bossbar"].ForceColor = default(data.ForceColor, false)
-	ModConfigMenu.Config["Custom Bossbar"].BossSatan = default(data.BossSatan, false)
-	ModConfigMenu.Config["Custom Bossbar"].BossTheLamb = default(data.BossTheLamb, false)
-	ModConfigMenu.Config["Custom Bossbar"].BossIsaac = default(data.BossIsaac, false)
-	ModConfigMenu.Config["Custom Bossbar"].BossBlueBaby = default(data.BossBlueBaby, false)
-	ModConfigMenu.Config["Custom Bossbar"].BossHush = default(data.BossHush, false)
-	ModConfigMenu.Config["Custom Bossbar"].BossDelirium = default(data.BossDelirium, false)
-	ModConfigMenu.Config["Custom Bossbar"].BossMegaSatan = default(data.BossMegaSatan, true)
-	ModConfigMenu.Config["Custom Bossbar"].BossMother = default(data.BossMother, true)
-	ModConfigMenu.Config["Custom Bossbar"].BossTheBeast = default(data.BossTheBeast, true)
-	ModConfigMenu.Config["Custom Bossbar"].CustomAnm = default(data.CustomAnm, true)
-	ModConfigMenu.Config["Custom Bossbar"].InstaFix = default(data.InstaFix, false)
-	
+	-- Make sure data has defaults, and of same type
+	for k, v in pairs(MCM.Defaults) do
+		if type(data[k]) ~= type(v) then
+			data[k] = v
+		end
+	end
 	MCM.Data = data
 	
-	if ModConfigMenu then
-		MCM.FixOffset()
-		MCM.ColorChange()
-		MCM.BossChange()
-		MCM.OtherChange()
-	end
+	if not ModConfigMenu then return end
+	
+	ModConfigMenu.Config["Custom Bossbar"] = data
+	MCM.FixOffset()
+	MCM.ColorChange()
+	MCM.BossChange()
+	MCM.OtherChange()
 end
 
 function MCM.SaveData()
 	if not ModConfigMenu then return MCM.Data end
-	return {
-		ColorR = ModConfigMenu.Config["Custom Bossbar"].ColorR,
-		ColorG = ModConfigMenu.Config["Custom Bossbar"].ColorG,
-		ColorB = ModConfigMenu.Config["Custom Bossbar"].ColorB,
-		Chroma = ModConfigMenu.Config["Custom Bossbar"].Chroma,
-		ForceColor = ModConfigMenu.Config["Custom Bossbar"].ForceColor,
-		BossSatan = ModConfigMenu.Config["Custom Bossbar"].BossSatan,
-		BossTheLamb = ModConfigMenu.Config["Custom Bossbar"].BossTheLamb,
-		BossIsaac = ModConfigMenu.Config["Custom Bossbar"].BossIsaac,
-		BossBlueBaby = ModConfigMenu.Config["Custom Bossbar"].BossBlueBaby,
-		BossHush = ModConfigMenu.Config["Custom Bossbar"].BossHush,
-		BossDelirium = ModConfigMenu.Config["Custom Bossbar"].BossDelirium,
-		BossMegaSatan = ModConfigMenu.Config["Custom Bossbar"].BossMegaSatan,
-		BossMother = ModConfigMenu.Config["Custom Bossbar"].BossMother,
-		BossTheBeast = ModConfigMenu.Config["Custom Bossbar"].BossTheBeast,
-		CustomAnm = ModConfigMenu.Config["Custom Bossbar"].CustomAnm,
-		InstaFix = ModConfigMenu.Config["Custom Bossbar"].InstaFix
-	}
+	return ModConfigMenu.Config["Custom Bossbar"]
 end
 
 function Mod.FixPos()
@@ -95,84 +75,105 @@ function Mod.FixPos()
 	Mod.Pos = Mod.BasePos + Vector(size.X / 2, size.Y - Mod.Offset * 1.6)
 end
 
-function MCM.FixOffset()
-	Mod.Offset = default(ModConfigMenu.Config["General"].HudOffset, 0)
-	ScreenHelper.SetOffset(Mod.Offset)
-	Mod.FixPos()
-end
-
-function MCM.Display(text)
-	return function ()
-		MCM.InMenu = true
-		return text
-	end
-end
-
-function MCM.OnChange(setting, func)
-	local OldOnChange = setting.OnChange
-	
-	setting.OnChange = function (value)
-		OldOnChange(value)
-		func(value)
-	end
-	
-	return setting
-end
-
-
-function MCM.ColorChange()
-	Mod.Bar.Color = Color(
-		default(ModConfigMenu.Config["Custom Bossbar"].ColorR, 10) / 10,
-		default(ModConfigMenu.Config["Custom Bossbar"].ColorG, 0) / 10,
-		default(ModConfigMenu.Config["Custom Bossbar"].ColorB, 0) / 10
-	)
-	
-	if Mod.Chroma then Mod.Chroma = nil end
-	if ModConfigMenu.Config["Custom Bossbar"].Chroma ~= 0 then
-		local hue, sat, val = hsv.FromRGB(Mod.Bar.Color.R, Mod.Bar.Color.G, Mod.Bar.Color.B)
-		local shift = math.floor(1 / sat + 0.5)
-		local mult = default(ModConfigMenu.Config["Custom Bossbar"].Chroma, 1)
-		
-		Mod.Chroma = { hue = hue, sat = sat, val = val, shift = shift, mult = mult }
-		Mod.Bar.Color = Color(hsv.ToRGB(Isaac.GetFrameCount() / shift * 2, 1, val))
-	end
-	
-end
-
-function MCM.BossChange()
-	local megasatan = ModConfigMenu.Config["Custom Bossbar"].BossMegaSatan
-	local mother = ModConfigMenu.Config["Custom Bossbar"].BossMother
-	local thebeast = ModConfigMenu.Config["Custom Bossbar"].BossTheBeast
-	
-	Mod.ENTITYLIST["84.0.0"] = ModConfigMenu.Config["Custom Bossbar"].BossSatan
-	Mod.ENTITYLIST["84.10.0"] = ModConfigMenu.Config["Custom Bossbar"].BossSatan
-	Mod.ENTITYLIST["273.0.0"] = ModConfigMenu.Config["Custom Bossbar"].BossTheLamb
-	Mod.ENTITYLIST["273.10.0"] = ModConfigMenu.Config["Custom Bossbar"].BossTheLamb
-	Mod.ENTITYLIST["102.0.0"] = ModConfigMenu.Config["Custom Bossbar"].BossIsaac
-	Mod.ENTITYLIST["102.1.0"] = ModConfigMenu.Config["Custom Bossbar"].BossBlueBaby
-	Mod.ENTITYLIST["102.2.0"] = ModConfigMenu.Config["Custom Bossbar"].BossHush
-	Mod.ENTITYLIST["407.0.0"] = ModConfigMenu.Config["Custom Bossbar"].BossHush
-	Mod.ENTITYLIST["412.0.0"] = ModConfigMenu.Config["Custom Bossbar"].BossDelirium
-	
-	Mod.ENTITYLIST["274.0.0"] = megasatan
-	Mod.ENTITYLIST["275.0.0"] = megasatan
-	Mod.ENTITYLIST["912.0.0"] = mother
-	Mod.ENTITYLIST["912.10.0"] = mother
-	Mod.ENTITYLIST["951.0.0"] = thebeast
-	Mod.ENTITYLIST["951.10.0"] = thebeast
-	Mod.ENTITYLIST["951.20.0"] = thebeast
-	Mod.ENTITYLIST["951.30.0"] = thebeast
-	Mod.ENTITYLIST["951.40.0"] = thebeast
-	
-end
-
-function MCM.OtherChange()
-	Mod.CustomAnm = ModConfigMenu.Config["Custom Bossbar"].CustomAnm
-	Mod.InstaFix = ModConfigMenu.Config["Custom Bossbar"].InstaFix
-end
-
-
 if ModConfigMenu then
+	
+	MCM.Defaults = {
+		ColorR = 10,
+		ColorG = 0,
+		ColorB = 0,
+		Chroma = 0,
+		ForceColor = false,
+		BossSatan = false,
+		BossTheLamb = false,
+		BossIsaac = false,
+		BossBlueBaby = false,
+		BossHush = false,
+		BossDelirium = false,
+		BossMegaSatan = true,
+		BossMother = true,
+		BossTheBeast = true,
+		CustomAnm = false,
+		InstaFix = false
+	}
+
+	function MCM.FixOffset()
+		Mod.Offset = default(ModConfigMenu.Config["General"].HudOffset, 0)
+		ScreenHelper.SetOffset(Mod.Offset)
+		Mod.FixPos()
+	end
+	
+	function MCM.Display(text)
+		return function ()
+			MCM.InMenu = true
+			return text
+		end
+	end
+	
+	function MCM.OnChange(setting, func)
+		-- Keep the old value, or nothing else will happen
+		local oldFunc = setting.OnChange
+		
+		setting.OnChange = function (value)
+			oldFunc(value)
+			func(value)
+		end
+		
+		return setting
+	end
+	
+	
+	function MCM.ColorChange()
+		Mod.Sprite.Bar.Color = Color(
+			ModConfigMenu.Config["Custom Bossbar"].ColorR / 10,
+			ModConfigMenu.Config["Custom Bossbar"].ColorG / 10,
+			ModConfigMenu.Config["Custom Bossbar"].ColorB / 10
+		)
+		
+		if Mod.Chroma then Mod.Chroma = nil end
+		if ModConfigMenu.Config["Custom Bossbar"].Chroma ~= 0 then
+			local hue, sat, val = hsv.FromRGB(Mod.Sprite.Bar.Color.R, Mod.Sprite.Bar.Color.G, Mod.Sprite.Bar.Color.B)
+			local shift = math.floor(1 / sat + 0.5)
+			local mult = default(ModConfigMenu.Config["Custom Bossbar"].Chroma, 1)
+			
+			Mod.Chroma = { hue = hue, sat = sat, val = val, shift = shift, mult = mult }
+			Mod.Sprite.Bar.Color = Color(hsv.ToRGB(Isaac.GetFrameCount() / shift * 2, 1, val))
+		end
+		
+	end
+	
+	function MCM.BossChange()
+		local megasatan = ModConfigMenu.Config["Custom Bossbar"].BossMegaSatan
+		local mother = ModConfigMenu.Config["Custom Bossbar"].BossMother
+		local thebeast = ModConfigMenu.Config["Custom Bossbar"].BossTheBeast
+		
+		Mod.ENTITYLIST["84.0.0"] = ModConfigMenu.Config["Custom Bossbar"].BossSatan
+		Mod.ENTITYLIST["84.10.0"] = ModConfigMenu.Config["Custom Bossbar"].BossSatan
+		Mod.ENTITYLIST["273.0.0"] = ModConfigMenu.Config["Custom Bossbar"].BossTheLamb
+		Mod.ENTITYLIST["273.10.0"] = ModConfigMenu.Config["Custom Bossbar"].BossTheLamb
+		Mod.ENTITYLIST["102.0.0"] = ModConfigMenu.Config["Custom Bossbar"].BossIsaac
+		Mod.ENTITYLIST["102.1.0"] = ModConfigMenu.Config["Custom Bossbar"].BossBlueBaby
+		Mod.ENTITYLIST["102.2.0"] = ModConfigMenu.Config["Custom Bossbar"].BossHush
+		Mod.ENTITYLIST["407.0.0"] = ModConfigMenu.Config["Custom Bossbar"].BossHush
+		Mod.ENTITYLIST["412.0.0"] = ModConfigMenu.Config["Custom Bossbar"].BossDelirium
+		
+		Mod.ENTITYLIST["274.0.0"] = megasatan
+		Mod.ENTITYLIST["275.0.0"] = megasatan
+		Mod.ENTITYLIST["912.0.0"] = mother
+		Mod.ENTITYLIST["912.10.0"] = mother
+		Mod.ENTITYLIST["951.0.0"] = thebeast
+		Mod.ENTITYLIST["951.10.0"] = thebeast
+		Mod.ENTITYLIST["951.20.0"] = thebeast
+		Mod.ENTITYLIST["951.30.0"] = thebeast
+		Mod.ENTITYLIST["951.40.0"] = thebeast
+		
+	end
+	
+	function MCM.OtherChange()
+		Mod.CustomAnm = ModConfigMenu.Config["Custom Bossbar"].CustomAnm
+		Mod.InstaFix = ModConfigMenu.Config["Custom Bossbar"].InstaFix
+	end
+	
+	
 	local t, t2
 	
 	ModConfigMenu.AddText("Custom Bossbar", "General", MCM.Display("Default color"))
@@ -184,7 +185,7 @@ if ModConfigMenu then
 	MCM.OnChange(ModConfigMenu.AddBooleanSetting("Custom Bossbar", "General", "ForceColor", false, "Force Color", { [false] = "off", [true] = "on" }, "Changes the color of custom animations"), MCM.ColorChange)
 	ModConfigMenu.AddSpace("Custom Bossbar", "General")
 	ModConfigMenu.AddText("Custom Bossbar", "General", MCM.Display("Enable on bosses"))
-	t = "Allows the bar to show on"
+	t = "Allows the bar to show on "
 	t2 = "$newlineHudAPI needs to be active for the custom bar to show"
 	MCM.OnChange(ModConfigMenu.AddBooleanSetting("Custom Bossbar", "General", "BossSatan", false, "Satan", t .. "Satan" .. t2), MCM.BossChange)
 	MCM.OnChange(ModConfigMenu.AddBooleanSetting("Custom Bossbar", "General", "BossTheLamb", false, "The Lamb", t .. "The Lamb" .. t2), MCM.BossChange)
@@ -199,7 +200,6 @@ if ModConfigMenu then
 	MCM.OnChange(ModConfigMenu.AddBooleanSetting("Custom Bossbar", "General", "BossTheBeast", true, "The Beast", t .. "The Beast"), MCM.BossChange)
 	ModConfigMenu.AddSpace("Custom Bossbar", "General")
 	MCM.OnChange(ModConfigMenu.AddBooleanSetting("Custom Bossbar", "General", "CustomAnm", true, "Custom Animations", { [false] = "off", [true] = "on" }, "Enables custom animations"), MCM.OtherChange)
-	--MCM.OnChange(ModConfigMenu.AddNumberSetting("Custom Bossbar", "General", "ReplaceBar", 0, 2, 2, "Replace Bar", { [0] = "off", "exclude old boss", "include old boss" }, "Replaces the old bossbar"), MCM.OtherChange)
 	MCM.OnChange(ModConfigMenu.AddBooleanSetting("Custom Bossbar", "General", "InstaFix", false, "Insta Fix", { [false] = "off", [true] = "on" }, "Runs fixes every frame"), MCM.OtherChange)
 	
 	MCM.OnChange(ModConfigMenu.MenuData[1].Subcategories[1].Options[1], MCM.FixOffset)
@@ -215,30 +215,32 @@ function Mod.GetCustomBar(entity)
 	if not Mod.CustomAnm then return end
 	if Mod.CustomBars.Current then return end
 	local str = string.format("%i_%i_%i", entity.Type, entity.Variant, entity.SubType)
-	local str2
+	local str2, spr
 	
 	if not Mod.CustomBars.AnmNotExist[str] then
 		str2 = string.format("gfx/custom_ui/ui_bosshealthbar-%s.anm2", str)
-		Mod.Base:Load("gfx/no_anm.anm2", true)
-		Mod.Base:Load(str2, true)
 		
-		if default(tonumber(Mod.Base:GetDefaultAnimationName()), 0) <= 0 then
+		-- Create a new sprite because it breaks the og sprite
+		spr = Sprite()
+		spr:Load(str2, true)
+		
+		-- Check if the default animation name is a number and greater than 0
+		if default(tonumber(spr:GetDefaultAnimationName()), 0) <= 0 then
+			-- It is not, mark the type to not be checked again
 			Mod.CustomBars.AnmNotExist[str] = true
-			Mod.ResetAnm()
 			return
 		end
 		
-		Mod.Base:Play("Base")
+		Mod.Sprite.Base:Load(str2, true)
+		Mod.Sprite.Base:Play("Base")
 		
-		Mod.Bar:Load(str2, true)
-		Mod.Bar:Play("Bar")
+		Mod.Sprite.Bar:Load(str2, true)
+		Mod.Sprite.Bar:Play("Bar")
 		
-		Mod.Over:Load(str2, true)
-		Mod.Over:Play("Over")
+		Mod.Sprite.Over:Load(str2, true)
+		Mod.Sprite.Over:Play("Over")
 		
-		if Mod.CustomBars.Color[str] then
-			Mod.Bar.Color = default(Mod.CustomBars.Color[str], Mod.Bar.Color)
-		end
+		if not Mod.ForceColor then Mod.Sprite.Bar.Color = default(Mod.CustomBars.Color[str], Color(1, 0, 0)) end
 		
 		Mod.CustomBars.Current = str
 	end
@@ -246,7 +248,7 @@ end
 
 function Mod.EntityListCheck(entity)
 	return (
-		entity:IsBoss() or
+		--entity:IsBoss() or
 		Mod.ENTITYLIST[entityTypeString(entity)]
 	) and true or false
 end
@@ -264,53 +266,58 @@ function Mod:MC_POST_RENDER()
 	
 	if Mod.Chroma and (Mod.ForceColor or not Mod.CustomBars.Current) and frame % Mod.Chroma.shift == 0 then
 		local hue = frame / Mod.Chroma.shift * Mod.Chroma.mult
-		Mod.Bar.Color = Color(hsv.ToRGB(hue, 1, Mod.Chroma.val))
+		Mod.Sprite.Bar.Color = Color(hsv.ToRGB(hue, 1, Mod.Chroma.val))
 	end
 	
-	Mod.Base:Render(Mod.Pos)
-	Mod.Bar:Render(Mod.Pos, Vector.Zero, Mod.RightClamp)
-	Mod.Over:Render(Mod.Pos)
+	Mod.Sprite.Base:Render(Mod.Pos)
+	Mod.Sprite.Bar:Render(Mod.Pos, Vector.Zero, Mod.RightClamp)
+	Mod.Sprite.Over:Render(Mod.Pos)
+	
+	Mod.Sprite.Base:Update()
+	Mod.Sprite.Bar:Update()
+	Mod.Sprite.Over:Update()
 end
 
 function Mod:CalculateHitPoints(entity)
-	-- Entity checks
-	if not Mod.EntityListCheck(entity) then return end -- Must be on the entity list
-	if not entity:IsVulnerableEnemy() and (not Mod.HitPoints or not Mod.HitPoints[GetPtrHash(entity)]) then return end -- Must be something you can deal damage to
+	if not Mod.EntityListCheck(entity) then return end
+	-- Must be something you can deal damage to or already in the table
+	if not entity:IsVulnerableEnemy() and (not Mod.HitPoints or not Mod.HitPoints[GetPtrHash(entity)]) then return end
 	
 	if not Mod.HitPoints then
 		Mod.HitPoints = {
-			Value = 0, LastValue = 0,
-			Max = { Value = 0 },
-			Entities = 0,
+			Value = 0, LastValue = 0, -- LastValue used for (broken) animation
+			Max = { Value = 0 }, -- Max value of bar
+			Entities = 0, -- Number of entities
 			
-			EntityType = {}
+			ID = {} -- Entity types, don't ask why it's called ID
 		}
 	end
 	
 	-- Setup vars
 	local ptr = GetPtrHash(entity)
 	local hp = math.max(entity.HitPoints, 0)
-	local diff = Mod.HitPoints.Max[ptr] or 0
+	local diff = default(Mod.HitPoints.Max[ptr], 0)
 	local id = entityTypeString(entity)
 	
+	-- If entity is not in the table
 	if not Mod.HitPoints[ptr] then
 		Mod.HitPoints.Entities = Mod.HitPoints.Entities + 1
-		Mod.HitPoints.EntityType[ptr] = id
+		Mod.HitPoints.ID[ptr] = id
 		Mod.GetCustomBar(entity)
 	end
 	
 	
 	-- Modify maximum value
 	Mod.HitPoints.Max[ptr] = math.max(hp, diff)
-	if Mod.HitPoints.EntityType[ptr] ~= id then
+	if Mod.HitPoints.ID[ptr] ~= id then
 		-- If entity has changed, reset max value
 		Mod.HitPoints.Max[ptr] = 0
-		Mod.HitPoints.EntityType[ptr] = id
+		Mod.HitPoints.ID[ptr] = id
 	end
 	Mod.HitPoints.Max.Value = Mod.HitPoints.Max.Value + Mod.HitPoints.Max[ptr] - diff
 	
 	-- Modify value
-	diff = Mod.HitPoints[ptr] or 0
+	diff = default(Mod.HitPoints[ptr], 0)
 	Mod.HitPoints[ptr] = hp
 	Mod.HitPoints.Value = Mod.HitPoints.Value + Mod.HitPoints[ptr] - diff
 	
@@ -343,8 +350,8 @@ function Mod:MC_POST_ENTITY_REMOVE(entity)
 	local ptr = GetPtrHash(entity)
 	if not Mod.HitPoints[ptr] then return end
 	
+	-- Decrement the number of entities
 	Mod.HitPoints.Entities = Mod.HitPoints.Entities - 1
-	Mod.HitPoints.EntityType[ptr] = nil
 	Mod:CalculateHitPoints(entity)
 end
 
@@ -356,31 +363,33 @@ function Mod.UpdateBar()
 		Mod.ResetAnm()
 		return
 	end
-		
+	
 	Mod.RightClamp = Vector(Mod.Length - Mod.HitPoints.Value / Mod.HitPoints.Max.Value * Mod.Length, 0)
 	
 	if Mod.HitPoints.LastValue > Mod.HitPoints.Value then
-		Mod.Bar:Play("Bar", true)
+		Mod.Sprite.Bar:Play("Bar", true)
 	end
 	
 	Mod.HitPoints.LastValue = Mod.HitPoints.Value
 end
 
 function Mod.ResetAnm()
-	Mod.Base:Load("gfx/custom_ui/ui_bosshealthbar.anm2", true)
-	Mod.Base:Play("Base")
+	-- Reset sprites to defaults
 	
-	Mod.Bar:Load("gfx/custom_ui/ui_bosshealthbar.anm2", true)
-	Mod.Bar:Play("Bar")
+	Mod.Sprite.Base:Load("gfx/custom_ui/ui_bosshealthbar.anm2", true)
+	Mod.Sprite.Base:Play("Base")
 	
-	Mod.Over:Load("gfx/custom_ui/ui_bosshealthbar.anm2", true)
-	Mod.Over:Play("Over")
+	Mod.Sprite.Bar:Load("gfx/custom_ui/ui_bosshealthbar.anm2", true)
+	Mod.Sprite.Bar:Play("Bar")
 	
-	Mod.Length = tonumber(Mod.Bar:GetDefaultAnimationName()) or 110
+	Mod.Sprite.Over:Load("gfx/custom_ui/ui_bosshealthbar.anm2", true)
+	Mod.Sprite.Over:Play("Over")
+	
+	Mod.Length = Mod.Sprite.Bar:GetDefaultAnimationName()
 	if ModConfigMenu then
 		MCM.ColorChange()
 	else
-		Mod.Bar.Color = Color(1, 0, 0)
+		Mod.Sprite.Bar.Color = Color(1, 0, 0)
 	end
 	
 	Mod.CustomBars.Current = nil
@@ -388,6 +397,7 @@ end
 Mod.ResetAnm()
 
 function Mod:MC_POST_NEW_ROOM()
+	-- Reset HitPoints and sprites
 	Mod.HitPoints = nil
 	Mod.ResetAnm()
 end
